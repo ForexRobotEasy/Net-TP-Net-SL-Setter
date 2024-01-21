@@ -1,0 +1,107 @@
+mql5
+//+------------------------------------------------------------------+
+//|                                                   Net TP Net SL Setter |
+//|                            Copyright 2021, Forex Robot Easy Team |
+//|                             https://www.forexroboteasy.com       |
+//+------------------------------------------------------------------+
+
+// Global variables
+bool g_bEnableNetTPNetSLSetter = true;  // Option to enable or disable the Net TP Net SL Setter functionality
+double g_dNetTP;   // Net Take Profit threshold
+double g_dNetSL;   // Net Stop Loss threshold
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit()
+{
+    // Initialize the Net TP and Net SL values
+    g_dNetTP = 100.0;  // Default value for Net TP
+    g_dNetSL = -50.0;  // Default value for Net SL
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+void OnDeinit(const int reason)
+{
+    // Close all open trades and pending orders before deinitialization
+    CloseAllTrades();
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick()
+{
+    // Check if the Net TP Net SL Setter functionality is enabled
+    if (!g_bEnableNetTPNetSLSetter)
+        return;
+
+    // Calculate the net profit or net loss
+    double netProfitLoss = CalculateNetProfitLoss();
+
+    // Check if the net profit or net loss has reached the specified threshold
+    if (netProfitLoss >= g_dNetTP || netProfitLoss <= g_dNetSL)
+    {
+        // Close all open trades and pending orders
+        CloseAllTrades();
+
+        // Disable the Net TP Net SL Setter functionality
+        g_bEnableNetTPNetSLSetter = false;
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to close all open trades and pending orders              |
+//+------------------------------------------------------------------+
+void CloseAllTrades()
+{
+    // Close all open trades
+    for (int i = 0; i < OrdersTotal(); i++)
+    {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            if (OrderType() <= OP_SELL)
+            {
+                OrderClose(OrderTicket(), OrderLots(), MarketInfo(OrderSymbol(), MODE_BID), 0, clrNone);
+            }
+        }
+    }
+
+    // Close all pending orders
+    for (int i = 0; i < OrdersTotal(); i++)
+    {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_HISTORY))
+        {
+            if (OrderType() > OP_SELL)
+            {
+                OrderDelete(OrderTicket());
+            }
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to calculate the net profit or net loss                 |
+//+------------------------------------------------------------------+
+double CalculateNetProfitLoss()
+{
+    double netProfitLoss = 0.0;
+
+    // Calculate the net profit or net loss by summing up the profits and losses of all open trades
+    for (int i = 0; i < OrdersTotal(); i++)
+    {
+        if (OrderSelect(i, SELECT_BY_POS, MODE_TRADES))
+        {
+            if (OrderType() <= OP_SELL)
+            {
+                netProfitLoss += OrderProfit();
+            }
+        }
+    }
+
+    return netProfitLoss;
+}
